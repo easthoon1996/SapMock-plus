@@ -7,15 +7,15 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 public class SecurityConfig {
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf().disable()
-                .authorizeRequests(authz -> authz
-                        .anyRequest().authenticated()
-                )
-                .httpBasic(); // Basic 인증 허용
+                .authorizeRequests()
+                .anyRequest().authenticated()
+                .and()
+                .httpBasic(); // Basic 인증
+
         return http.build();
     }
 }
