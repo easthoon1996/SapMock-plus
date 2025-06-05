@@ -80,7 +80,7 @@ public class FakeSapService {
             for (String condition : conditions) {
                 condition = condition.trim();
 
-                // 🔥 eq 처리
+                // eq 처리
                 if (condition.contains(" eq ")) {
                     String[] parts = condition.split(" eq ");
                     String field = parts[0].trim();
@@ -89,14 +89,14 @@ public class FakeSapService {
                             .filter(e -> matchEquals(e, field, value))
                             .collect(Collectors.toList());
                 } else {
-                    // 🔥 gt/ge/lt/le 처리
+                    // gt/ge/lt/le 처리
                     String operator = null;
                     if (condition.contains(" gt ")) operator = "gt";
                     else if (condition.contains(" ge ")) operator = "ge";
                     else if (condition.contains(" lt ")) operator = "lt";
                     else if (condition.contains(" le ")) operator = "le";
 
-                    // ✅ operator가 있으면 처리
+                    // operator가 있으면 처리
                     if (operator != null) {
                         String[] parts = condition.split(" " + operator + " ");
                         if (parts.length == 2) {
