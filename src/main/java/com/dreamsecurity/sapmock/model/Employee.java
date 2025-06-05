@@ -1,6 +1,8 @@
 package com.dreamsecurity.sapmock.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Employee {
     private String employeeId;
@@ -23,6 +25,10 @@ public class Employee {
     private String address;
     private String bankAccount;
     private String taxId;
+    private List<Role> roles = new ArrayList<>();
+
+    public List<Role> getRoles() { return roles; }
+    public void setRoles(List<Role> roles) { this.roles = roles; }
 
     public String getEmployeeId() {
         return employeeId;

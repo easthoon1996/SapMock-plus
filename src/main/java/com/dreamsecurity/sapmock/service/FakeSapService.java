@@ -1,6 +1,8 @@
 package com.dreamsecurity.sapmock.service;
 
 import com.dreamsecurity.sapmock.model.Employee;
+import com.dreamsecurity.sapmock.model.Privilege;
+import com.dreamsecurity.sapmock.model.Role;
 import com.github.javafaker.Faker;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -52,6 +54,30 @@ public class FakeSapService {
             emp.setAddress(faker.address().fullAddress());
             emp.setBankAccount(faker.number().digits(12));
             emp.setTaxId(faker.number().digits(9));
+
+            // 🔥 Privileges 샘플
+            Privilege p1 = new Privilege();
+            p1.setPrivilegeId("P1");
+            p1.setPrivilegeName("READ");
+            p1.setDescription("읽기 권한");
+
+            Privilege p2 = new Privilege();
+            p2.setPrivilegeId("P2");
+            p2.setPrivilegeName("WRITE");
+            p2.setDescription("쓰기 권한");
+
+            // 🔥 Role 샘플
+            Role role = new Role();
+            role.setRoleId("R" + i);
+            role.setRoleName("Role_" + i);
+            role.setDescription("샘플 역할_" + i);
+
+            // 🔥 Role에 Privileges 연결
+            role.getPrivileges().add(p1);
+            role.getPrivileges().add(p2);
+
+            // 🔥 Employee에 Role 연결
+            emp.getRoles().add(role);
 
             employees.add(emp);
         }
