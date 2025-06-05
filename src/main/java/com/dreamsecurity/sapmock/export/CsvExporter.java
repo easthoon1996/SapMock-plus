@@ -29,7 +29,6 @@ public class CsvExporter {
         }
     }
 
-    // 🔥 추가: OutputStream으로 바로 쓰는 메서드
     public void exportEmployeesToResponse(List<Employee> employees, HttpServletResponse response) throws IOException {
         // 👉 OutputStreamWriter를 UTF-8로 명시적으로 지정
         response.setContentType("text/csv; charset=UTF-8");

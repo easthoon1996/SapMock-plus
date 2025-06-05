@@ -109,4 +109,12 @@ public class FakeSapService {
         }
         return filtered.subList(skip, end);
     }
+
+    public Optional<Employee> findEmployeeById(String employeeId) {
+        return employees.stream()
+                .filter(e -> e.getEmployeeId().equals(employeeId))
+                .findFirst();
+    }
+
+
 }
