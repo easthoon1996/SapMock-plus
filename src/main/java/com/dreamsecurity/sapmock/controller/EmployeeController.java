@@ -36,9 +36,9 @@ public class EmployeeController {
 
     @GetMapping("/Employees")
     public Map<String, Object> getEmployees(
-            @RequestParam(name = "skip", defaultValue = "0") int skip,
-            @RequestParam(name = "top", defaultValue = "10") int top,
-            @RequestParam(name = "filter", required = false) String filter) {
+            @RequestParam(name = "$skip", defaultValue = "0") int skip,
+            @RequestParam(name = "$top", defaultValue = "10") int top,
+            @RequestParam(name = "$filter", required = false) String filter) {
 
         String modifiedAfter = null;
         if (filter != null && filter.contains("hireDate gt")) {
