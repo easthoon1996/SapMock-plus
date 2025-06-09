@@ -109,4 +109,19 @@ public class EmployeeController {
         }
     }
 
+    @GetMapping("/Employees/{employeeId}")
+    public ResponseEntity<?> getEmployeeDetail(@PathVariable String employeeId) {
+        log.info("[getEmployeeDetail] 요청: employeeId={}", employeeId);
+
+        Optional<Employee> employee = employeeService.findEmployeeById(employeeId);
+
+        if (employee.isPresent()) {
+            log.info("[getEmployeeDetail] 결과: {}", employee.get());
+            return ResponseEntity.ok(employee.get());
+        } else {
+            log.warn("[getEmployeeDetail] 결과: 직원 없음");
+            return ResponseEntity.notFound().build();
+        }
+    }
+
 }
