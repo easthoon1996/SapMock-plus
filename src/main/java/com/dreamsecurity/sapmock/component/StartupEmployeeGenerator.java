@@ -24,10 +24,13 @@ public class StartupEmployeeGenerator implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
+        if (employeeService.hasEnoughEmployees(defaultCount)) {
+            log.info("기존에 직원이 {}명 이상 존재하므로 생성 생략", defaultCount);
+            return;
+        }
+
         log.info("SAP Mock 서버 기동 후 직원 {}명 생성 시작", defaultCount);
-
         employeeService.generateEmployees(defaultCount);
-
         log.info("초기 직원 데이터 생성 완료!");
     }
 }

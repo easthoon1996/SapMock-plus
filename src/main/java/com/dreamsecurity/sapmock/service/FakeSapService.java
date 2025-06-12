@@ -1,16 +1,19 @@
 package com.dreamsecurity.sapmock.service;
 
-import com.dreamsecurity.sapmock.controller.EmployeeController;
 import com.dreamsecurity.sapmock.model.Employee;
 import com.dreamsecurity.sapmock.model.Privilege;
 import com.dreamsecurity.sapmock.model.Role;
-import com.dreamsecurity.sapmock.model.AuthorizationObject;
+import com.dreamsecurity.sapmock.repository.EmployeeRepository;
+import com.dreamsecurity.sapmock.repository.PrivilegeRepository;
+import com.dreamsecurity.sapmock.repository.RoleRepository;
 import com.github.javafaker.Faker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
@@ -21,53 +24,116 @@ import java.util.stream.Collectors;
 public class FakeSapService {
 
     private static final Logger log = LoggerFactory.getLogger(FakeSapService.class);
-
     private static final Faker faker = new Faker(new Locale("ko"));
-    private final RestTemplate restTemplate;
-    private final List<Employee> employees = new ArrayList<>();
 
-    // SAP의 권한 객체 마스터 (AuthorizationObject)
-    private final List<AuthorizationObject> masterAuthObjects = List.of(
-            new AuthorizationObject("S_USER_GRP", "사용자 그룹 관리", List.of("ACTVT")),
-            new AuthorizationObject("S_TCODE", "트랜잭션 코드 실행", List.of("TCD")),
-            new AuthorizationObject("S_PROGRAM", "프로그램 실행", List.of("ACTVT")),
-            new AuthorizationObject("S_DATASET", "파일 액세스", List.of("ACTVT", "FILENAME"))
-    );
+    @Autowired
+    private EmployeeRepository employeeRepository;
 
-    // SAP의 권한 객체별 권한 상세 (Privilege)
-    private final Map<String, List<Privilege>> masterPrivileges = Map.of(
-            "S_USER_GRP", List.of(
-                    new Privilege("S_USER_GRP", "ACTVT=01", "사용자 그룹 생성"),
-                    new Privilege("S_USER_GRP", "ACTVT=02", "사용자 그룹 수정"),
-                    new Privilege("S_USER_GRP", "ACTVT=03", "사용자 그룹 조회")
-            ),
-            "S_TCODE", List.of(
-                    new Privilege("S_TCODE", "TCD=SM30", "테이블 유지관리 실행"),
-                    new Privilege("S_TCODE", "TCD=SE38", "ABAP 프로그램 실행"),
-                    new Privilege("S_TCODE", "TCD=VA01", "판매 주문 생성")
-            ),
-            "S_PROGRAM", List.of(
-                    new Privilege("S_PROGRAM", "ACTVT=03", "프로그램 조회")
-            )
-    );
+    @Autowired
+    private RoleRepository roleRepository;
 
-    // 역할(Role) 마스터 정의
-    private final List<Role> masterRoles = List.of(
-            new Role("ADMIN", "시스템 관리자", "SAP 시스템 전체 관리", combinePrivileges(List.of("S_USER_GRP", "S_TCODE"))),
-            new Role("DEVELOPER", "개발자", "SAP 개발자 권한", combinePrivileges(List.of("S_TCODE", "S_PROGRAM"))),
-            new Role("SALES", "영업 담당자", "SAP 영업 기능 접근", combinePrivileges(List.of("S_TCODE")))
-    );
+    @Autowired
+    private PrivilegeRepository privilegeRepository;
 
-    public FakeSapService(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    @PostConstruct
+    @Transactional
+    public void initMasterData() {
+        log.info("[initMasterData] 마스터 데이터 초기화 시작");
+
+        List<Privilege> privileges = List.of(
+                new Privilege("S_USER_GRP", "ACTVT=01", "사용자 그룹 생성"),
+                new Privilege("S_USER_GRP", "ACTVT=02", "사용자 그룹 수정"),
+                new Privilege("S_USER_GRP", "ACTVT=03", "사용자 그룹 조회"),
+                new Privilege("S_TCODE", "TCD=SM30", "테이블 유지관리 실행"),
+                new Privilege("S_TCODE", "TCD=SE38", "ABAP 프로그램 실행"),
+                new Privilege("S_TCODE", "TCD=VA01", "판매 주문 생성"),
+                new Privilege("S_PROGRAM", "ACTVT=03", "프로그램 조회"),
+                new Privilege("S_USER_AUTH", "ACTVT=01", "권한 부여"),
+                new Privilege("S_DEVELOP", "DEV=ALL", "개발 권한"),
+                new Privilege("S_TRANSPRT", "TR=ALL", "운송 권한"),
+                new Privilege("VA_VBAK_VBK", "SALES=ALL", "영업 오더 보기"),
+                new Privilege("SD_VBAK_AAT", "SALES=CHANGE", "영업 오더 변경"),
+                new Privilege("S_RFC", "RFC=ALL", "RFC 접근"),
+                new Privilege("S_DATASET", "FILE=ALL", "파일 접근"),
+                new Privilege("P_ORGIN", "HR=ALL", "인사 정보 접근"),
+                new Privilege("M_MATE_MAT", "MAT=ALL", "자재 정보 접근"),
+                new Privilege("MM_PUR_PO", "PURCHASE=PO", "구매 오더"),
+                new Privilege("MM_PUR_PR", "PURCHASE=PR", "구매 요청"),
+                new Privilege("F_BKPF_BUK", "FI=ALL", "재무 데이터 접근"),
+                new Privilege("FI_GL_ACC", "GL=ALL", "일반원장 접근"),
+                new Privilege("K_KOSTL", "CO=ALL", "관리회계 접근"),
+                new Privilege("CO_CCTR", "CCTR=ALL", "원가센터 접근"),
+                new Privilege("PP_ORDER", "PP=ALL", "생산 오더 접근"),
+                new Privilege("QM_QINFO", "QM=ALL", "품질 정보 접근"),
+                new Privilege("PM_EQUI", "PM=ALL", "설비 정보 접근"),
+                new Privilege("WM_LQUA", "WM=ALL", "재고 정보 접근"),
+                new Privilege("SD_BILLING", "SD=ALL", "청구 관리 접근"),
+                new Privilege("BW_REPORT", "BW=ALL", "BI 보고서 접근"),
+                new Privilege("APO_PLAN", "APO=ALL", "계획 접근"),
+                new Privilege("IT_SEC", "IT=SEC", "보안 관리"),
+                new Privilege("IT_MON", "IT=MON", "모니터링"),
+                new Privilege("IT_CFG", "IT=CFG", "시스템 설정"),
+                new Privilege("GRC_ACCESS", "GRC=ALL", "GRC 접근 제어"),
+                new Privilege("SOLMAN_MON", "SOLMAN=ALL", "솔루션 매니저 모니터링"),
+                new Privilege("S4HANA_CORE", "S4=CORE", "S/4HANA 기본 권한")
+        );
+
+        privileges.forEach(p -> {
+            if (!privilegeRepository.existsByPrivilegeIdAndPrivilegeName(p.getPrivilegeId(), p.getPrivilegeName())) {
+                privilegeRepository.save(p);
+            }
+        });
+
+        Map<String, List<Privilege>> privMap = privileges.stream()
+                .collect(Collectors.groupingBy(Privilege::getPrivilegeId));
+
+        List<Role> roles = List.of(
+                new Role("ADMIN", "시스템 관리자", "SAP 시스템 전체 관리", combinePrivileges(privMap, "S_USER_GRP", "S_TCODE", "S_USER_AUTH")),
+                new Role("DEVELOPER", "개발자", "SAP 개발자 권한", combinePrivileges(privMap, "S_TCODE", "S_PROGRAM", "S_DEVELOP", "S_TRANSPRT")),
+                new Role("SALES", "영업 담당자", "SAP 영업 기능 접근", combinePrivileges(privMap, "S_TCODE", "VA_VBAK_VBK", "SD_VBAK_AAT")),
+                new Role("BASIS", "기술 관리자", "시스템 기술 지원", combinePrivileges(privMap, "S_RFC", "S_DATASET")),
+                new Role("FILE_ADMIN", "파일 관리자", "파일 업로드/다운로드 권한", combinePrivileges(privMap, "S_DATASET")),
+                new Role("HR", "인사 관리자", "SAP 인사 관리 기능", combinePrivileges(privMap, "P_ORGIN")),
+                new Role("MM", "자재 관리자", "SAP 자재 관리 기능", combinePrivileges(privMap, "M_MATE_MAT", "MM_PUR_PO", "MM_PUR_PR")),
+                new Role("FI", "재무 관리자", "SAP 재무 회계 기능", combinePrivileges(privMap, "F_BKPF_BUK", "FI_GL_ACC")),
+                new Role("CO", "관리회계 관리자", "SAP 관리회계 기능", combinePrivileges(privMap, "K_KOSTL", "CO_CCTR")),
+                new Role("PP", "생산 관리자", "SAP 생산 관리 기능", combinePrivileges(privMap, "PP_ORDER")),
+                new Role("QM", "품질 관리자", "SAP 품질 관리 기능", combinePrivileges(privMap, "QM_QINFO")),
+                new Role("PM", "설비 관리자", "SAP 설비 관리 기능", combinePrivileges(privMap, "PM_EQUI")),
+                new Role("WM", "창고 관리자", "SAP 창고 관리 기능", combinePrivileges(privMap, "WM_LQUA")),
+                new Role("SD", "판매 관리자", "SAP SD 모듈 기능", combinePrivileges(privMap, "SD_VBAK_AAT", "SD_BILLING")),
+                new Role("BW", "BI 관리자", "SAP BW 분석 보고서 기능", combinePrivileges(privMap, "BW_REPORT")),
+                new Role("APO", "계획 관리자", "SAP APO 계획 기능", combinePrivileges(privMap, "APO_PLAN")),
+                new Role("IT_ADMIN", "IT 관리자", "SAP 시스템 IT 설정 및 모니터링", combinePrivileges(privMap, "IT_SEC", "IT_MON", "IT_CFG")),
+                new Role("GRC", "접근 통제 관리자", "GRC 접근 권한 감사 및 분석", combinePrivileges(privMap, "GRC_ACCESS")),
+                new Role("SOLMAN", "솔루션 매니저 관리자", "SAP 솔루션 매니저 기능", combinePrivileges(privMap, "SOLMAN_MON")),
+                new Role("S4HANA", "S/4HANA 사용자", "SAP S/4HANA 핵심 기능", combinePrivileges(privMap, "S4HANA_CORE"))
+        );
+
+        roleRepository.saveAll(roles);
     }
 
-    /**
-     * 직원 생성 (SAP 실제처럼 역할/권한 기반)
-     */
-    public List<Employee> generateEmployees(int count) {
-        employees.clear();
-        for (int i = 1; i <= count; i++) {
+    @Transactional
+    public void generateEmployees(int count) {
+        List<Role> roles = roleRepository.findAll();
+        if (roles.isEmpty()) {
+            throw new IllegalStateException("역할(Role) 정보가 존재하지 않습니다. 마스터 데이터를 먼저 초기화하세요.");
+        }
+
+        Map<String, List<String>> deptRoleMap = Map.of(
+                "IT", List.of("ADMIN", "DEVELOPER", "BASIS", "IT_ADMIN", "S4HANA"),
+                "Sales", List.of("SALES", "SD", "BW"),
+                "Admin", List.of("HR", "FILE_ADMIN", "GRC", "SOLMAN"),
+                "Logistics", List.of("MM", "WM", "PM", "PP", "QM"),
+                "Finance", List.of("FI", "CO")
+        );
+
+        List<String> departments = new ArrayList<>(deptRoleMap.keySet());
+        List<Employee> employees = new ArrayList<>();
+
+        Map<String, Role> roleMap = roles.stream().collect(Collectors.toMap(Role::getRoleId, r -> r));
+
+        for (int i = 0; i < count; i++) {
             Employee emp = new Employee();
             emp.setEmployeeId(String.format("%05d", 10000 + i));
             emp.setFirstName(faker.name().firstName());
@@ -80,10 +146,22 @@ public class FakeSapService {
             emp.setPosition(faker.job().position());
             emp.setJobTitle(faker.job().title());
 
-            // 부서 기반으로 역할 배정
-            String deptType = faker.options().option("IT", "Sales", "Admin");
-            emp.setDepartment(deptType.equals("IT") ? "1001" : deptType.equals("Sales") ? "2001" : "0001");
+            String deptType = faker.options().option(departments.toArray(new String[0]));
+            emp.setDepartment(
+                    deptType.equals("IT") ? "1001" :
+                            deptType.equals("Sales") ? "2001" :
+                                    deptType.equals("Finance") ? "3001" :
+                                            deptType.equals("Logistics") ? "4001" : "0001");
             emp.setDepartmentName(deptType);
+
+            List<String> roleIds = deptRoleMap.getOrDefault(deptType, List.of());
+            Set<Role> assignedRoles = new HashSet<>();
+            while (assignedRoles.isEmpty()) {
+                int numRoles = faker.number().numberBetween(1, 4); // 최소 1개 보장
+                Collections.shuffle(roles);
+                assignedRoles.addAll(roles.subList(0, numRoles));
+            }
+            emp.setRoles(assignedRoles);
 
             emp.setHireDate(toLocalDate(faker.date().past(5000, TimeUnit.DAYS)));
             emp.setTerminationDate(faker.bool().bool() ? toLocalDate(faker.date().future(1000, TimeUnit.DAYS)) : null);
@@ -99,164 +177,76 @@ public class FakeSapService {
             emp.setBankAccount(faker.number().digits(12));
             emp.setTaxId(faker.number().digits(9));
 
-            // 역할 배정 (부서 기반)
-            if (deptType.equals("IT")) {
-                emp.getRoles().add(cloneRoleById("DEVELOPER"));
-            } else if (deptType.equals("Sales")) {
-                emp.getRoles().add(cloneRoleById("SALES"));
-            } else {
-                emp.getRoles().add(cloneRoleById("ADMIN"));
-            }
-
-            // 필요에 따라 추가 역할을 랜덤으로 부여 (1명이 여러 Role을 가질 수 있도록)
-            if (faker.bool().bool()) {
-                emp.getRoles().add(cloneRoleById("ADMIN"));
-            }
-
             employees.add(emp);
         }
-        return employees;
+        employeeRepository.deleteAll();
+        employeeRepository.saveAll(employees);
     }
 
-    /**
-     * 역할 복사
-     */
-    private Role cloneRoleById(String roleId) {
-        return masterRoles.stream()
-                .filter(r -> r.getRoleId().equals(roleId))
-                .findFirst()
-                .map(r -> {
-                    Role copy = new Role();
-                    copy.setRoleId(r.getRoleId());
-                    copy.setRoleName(r.getRoleName());
-                    copy.setDescription(r.getDescription());
-                    for (Privilege p : r.getPrivileges()) {
-                        copy.getPrivileges().add(new Privilege(p.getPrivilegeId(), p.getPrivilegeName(), p.getDescription()));
-                    }
-                    return copy;
-                })
-                .orElse(null);
+    public Employee saveEmployee(Employee emp) {
+        return employeeRepository.save(emp);
     }
 
-    /**
-     * 권한 객체별 Privilege를 복사해서 Role에 넣기
-     */
-    private static List<Privilege> combinePrivileges(List<String> authObjectIds) {
-        List<Privilege> combined = new ArrayList<>();
-        for (String authId : authObjectIds) {
-            combined.addAll(
-                    masterPrivilegesStatic().getOrDefault(authId, Collections.emptyList()).stream()
-                            .map(p -> new Privilege(p.getPrivilegeId(), p.getPrivilegeName(), p.getDescription()))
-                            .collect(Collectors.toList())
-            );
-        }
-        return combined;
-    }
+    @Transactional(readOnly = true)
+    public List<Employee> findAllEmployees(int skip, int top, String filter) {
+        List<Employee> all = employeeRepository.findAll();
 
-    // static으로 masterPrivileges를 재사용 (combinePrivileges에서 필요)
-    private static Map<String, List<Privilege>> masterPrivilegesStatic() {
-        return Map.of(
-                "S_USER_GRP", List.of(
-                        new Privilege("S_USER_GRP", "ACTVT=01", "사용자 그룹 생성"),
-                        new Privilege("S_USER_GRP", "ACTVT=02", "사용자 그룹 수정"),
-                        new Privilege("S_USER_GRP", "ACTVT=03", "사용자 그룹 조회")
-                ),
-                "S_TCODE", List.of(
-                        new Privilege("S_TCODE", "TCD=SM30", "테이블 유지관리 실행"),
-                        new Privilege("S_TCODE", "TCD=SE38", "ABAP 프로그램 실행"),
-                        new Privilege("S_TCODE", "TCD=VA01", "판매 주문 생성")
-                ),
-                "S_PROGRAM", List.of(
-                        new Privilege("S_PROGRAM", "ACTVT=03", "프로그램 조회")
-                )
-        );
-    }
-
-    private LocalDate toLocalDate(Date date) {
-        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-    }
-
-    /**
-     * 신규 직원 등록
-     */
-    public Employee addEmployee(Employee newEmp) {
-        // 🔥 employeeId를 새로 지정 (최대값 +1)
-        int maxId = employees.stream()
-                .mapToInt(e -> Integer.parseInt(e.getEmployeeId()))
-                .max()
-                .orElse(10000); // 시작 ID
-
-        newEmp.setEmployeeId(String.format("%05d", maxId + 1));
-
-        // 🚀 직원에게도 최소한 1개의 역할을 랜덤으로 배정 (부서 기반으로)
-        if (newEmp.getDepartmentName() != null) {
-            switch (newEmp.getDepartmentName().toLowerCase()) {
-                case "it":
-                    newEmp.getRoles().add(cloneRoleById("DEVELOPER"));
-                    break;
-                case "sales":
-                    newEmp.getRoles().add(cloneRoleById("SALES"));
-                    break;
-                default:
-                    newEmp.getRoles().add(cloneRoleById("ADMIN"));
-                    break;
-            }
-        } else {
-            // 부서명이 없으면 기본적으로 ADMIN 부여
-            newEmp.getRoles().add(cloneRoleById("ADMIN"));
-        }
-
-        employees.add(newEmp);
-        return newEmp;
-    }
-
-    public List<Employee> getEmployees(int skip, int top, String filter) {
-        List<Employee> filtered = employees;
-
-        if (filter != null && !filter.isEmpty()) {
+        if (filter != null && !filter.isBlank()) {
             String[] conditions = filter.split(" and ");
             for (String condition : conditions) {
                 condition = condition.trim();
-
-                // eq 처리
                 if (condition.contains(" eq ")) {
                     String[] parts = condition.split(" eq ");
                     String field = parts[0].trim();
                     String value = parts[1].replace("'", "").trim();
-                    filtered = filtered.stream()
-                            .filter(e -> matchEquals(e, field, value))
-                            .collect(Collectors.toList());
+
+                    if (field.equals("roleId")) {
+                        all = all.stream()
+                                .filter(e -> e.getRoles().stream().anyMatch(r -> r.getRoleId().equalsIgnoreCase(value)))
+                                .collect(Collectors.toList());
+                    } else if (field.equals("privilegeId")) {
+                        all = all.stream()
+                                .filter(e -> e.getRoles().stream()
+                                        .flatMap(r -> r.getPrivileges().stream())
+                                        .anyMatch(p -> p.getPrivilegeId().equalsIgnoreCase(value)))
+                                .collect(Collectors.toList());
+                    } else {
+                        all = all.stream().filter(e -> matchEquals(e, field, value)).collect(Collectors.toList());
+                    }
                 } else {
-                    // gt/ge/lt/le 처리
-                    String operator = null;
+                    String operator;
                     if (condition.contains(" gt ")) operator = "gt";
                     else if (condition.contains(" ge ")) operator = "ge";
                     else if (condition.contains(" lt ")) operator = "lt";
                     else if (condition.contains(" le ")) operator = "le";
+                    else {
+                        operator = null;
+                    }
 
-                    // operator가 있으면 처리
                     if (operator != null) {
                         String[] parts = condition.split(" " + operator + " ");
                         if (parts.length == 2) {
                             String field = parts[0].trim();
                             String value = parts[1].replace("'", "").trim();
-
-                            String finalOperator = operator; // 람다에서 effectively final
-                            filtered = filtered.stream()
-                                    .filter(e -> matchComparison(e, field, finalOperator, value))
-                                    .collect(Collectors.toList());
+                            all = all.stream().filter(e -> matchComparison(e, field, operator, value)).collect(Collectors.toList());
                         }
                     }
                 }
             }
         }
 
+        return all.stream().skip(skip).limit(top).collect(Collectors.toList());
+    }
 
-        int end = Math.min(skip + top, filtered.size());
-        if (skip >= filtered.size()) {
-            return Collections.emptyList();
-        }
-        return filtered.subList(skip, end);
+    @Transactional(readOnly = true)
+    public Optional<Employee> findEmployeeById(String employeeId) {
+        return employeeRepository.findById(employeeId);
+    }
+
+    private List<Privilege> combinePrivileges(Map<String, List<Privilege>> map, String... keys) {
+        return Arrays.stream(keys)
+                .flatMap(k -> map.getOrDefault(k, Collections.emptyList()).stream())
+                .collect(Collectors.toList());
     }
 
     private boolean matchEquals(Employee e, String field, String value) {
@@ -278,31 +268,22 @@ public class FakeSapService {
             case "address": return e.getAddress().equalsIgnoreCase(value);
             case "bankAccount": return e.getBankAccount().equals(value);
             case "taxId": return e.getTaxId().equals(value);
-            case "birthDate":
-                return e.getBirthDate() != null && e.getBirthDate().toString().equals(value);
-            case "hireDate":
-                return e.getHireDate() != null && e.getHireDate().toString().equals(value);
-            case "terminationDate":
-                return e.getTerminationDate() != null && e.getTerminationDate().toString().equals(value);
-            default:
-                return false;
+            case "birthDate": return e.getBirthDate() != null && e.getBirthDate().toString().equals(value);
+            case "hireDate": return e.getHireDate() != null && e.getHireDate().toString().equals(value);
+            case "terminationDate": return e.getTerminationDate() != null && e.getTerminationDate().toString().equals(value);
+            default: return false;
         }
     }
 
     private boolean matchComparison(Employee e, String field, String operator, String value) {
         switch (field) {
-            case "birthDate":
-                return compareDates(e.getBirthDate(), operator, value);
-            case "hireDate":
-                return compareDates(e.getHireDate(), operator, value);
-            case "terminationDate":
-                return compareDates(e.getTerminationDate(), operator, value);
+            case "birthDate": return compareDates(e.getBirthDate(), operator, value);
+            case "hireDate": return compareDates(e.getHireDate(), operator, value);
+            case "terminationDate": return compareDates(e.getTerminationDate(), operator, value);
             case "department":
             case "bankAccount":
-            case "taxId":
-                return compareNumbers(getFieldValueAsString(e, field), operator, value);
-            default:
-                return false; // 문자열 비교는 eq만 지원
+            case "taxId": return compareNumbers(getFieldValueAsString(e, field), operator, value);
+            default: return false;
         }
     }
 
@@ -343,10 +324,28 @@ public class FakeSapService {
         }
     }
 
-    public Optional<Employee> findEmployeeById(String employeeId) {
-        return employees.stream()
-                .filter(e -> e.getEmployeeId().equals(employeeId))
-                .findFirst();
+    private LocalDate toLocalDate(Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
+
+    public boolean hasEnoughEmployees(int requiredCount) {
+        return employeeRepository.count() >= requiredCount;
+    }
+
+    public List<Employee> findByRoleId(String roleId) {
+        return employeeRepository.findAll().stream()
+                .filter(emp -> emp.getRoles().stream().anyMatch(role -> role.getRoleId().equalsIgnoreCase(roleId)))
+                .collect(Collectors.toList());
+    }
+
+    public List<Employee> findByPrivilegeId(String privilegeId) {
+        return employeeRepository.findAll().stream()
+                .filter(emp -> emp.getRoles().stream()
+                        .flatMap(role -> role.getPrivileges().stream())
+                        .anyMatch(priv -> priv.getPrivilegeId().equalsIgnoreCase(privilegeId)))
+                .collect(Collectors.toList());
+    }
+
+
 
 }

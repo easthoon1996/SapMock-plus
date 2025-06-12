@@ -11,10 +11,13 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf().disable()
+                .headers().frameOptions().disable() // ✅ H2 콘솔 iframe 허용
+                .and()
                 .authorizeRequests()
+                .antMatchers("/h2-console/**").permitAll() // ✅ H2 콘솔 허용
                 .anyRequest().authenticated()
                 .and()
-                .httpBasic(); // Basic 인증
+                .httpBasic(); // ✅ Basic 인증
 
         return http.build();
     }

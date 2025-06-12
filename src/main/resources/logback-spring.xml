@@ -1,0 +1,26 @@
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+
+    <!-- 콘솔 출력 Appender -->
+    <appender name="COLORED_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>
+                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} -
+                %highlight(%replace(%msg){'(?i)(\\bSELECT\\b)', '\u001B[36m$1\u001B[0m'}) %n
+            </pattern>
+        </encoder>
+    </appender>
+
+    <!-- Hibernate SQL 로그 컬러링 -->
+    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+        <appender-ref ref="COLORED_CONSOLE" />
+    </logger>
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+        <appender-ref ref="COLORED_CONSOLE" />
+    </logger>
+
+    <!-- 전체 루트 로그 -->
+    <root level="INFO">
+        <appender-ref ref="COLORED_CONSOLE" />
+    </root>
+</configuration>

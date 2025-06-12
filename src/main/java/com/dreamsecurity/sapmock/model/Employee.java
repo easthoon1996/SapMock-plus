@@ -3,7 +3,9 @@ package com.dreamsecurity.sapmock.model;
 import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 public class Employee {
@@ -30,11 +32,11 @@ public class Employee {
     private String bankAccount;
     private String taxId;
 
-    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinTable(name = "employee_role",
             joinColumns = @JoinColumn(name = "employee_id"),
             inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private List<Role> roles = new ArrayList<>();  // 다수 Role 할당
+    private Set<Role> roles = new HashSet<>();
 
     public Employee() {}
 
@@ -99,6 +101,11 @@ public class Employee {
     public String getTaxId() { return taxId; }
     public void setTaxId(String taxId) { this.taxId = taxId; }
 
-    public List<Role> getRoles() { return roles; }
-    public void setRoles(List<Role> roles) { this.roles = roles; }
+    public Set<Role> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<Role> roles) {
+        this.roles = roles;
+    }
 }
