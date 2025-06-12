@@ -29,7 +29,7 @@ public class EmployeeController {
         this.restTemplate = restTemplate;
     }
 
-    // 사용자 생성 API
+    // 사용자 생성
     @PostMapping("/sap/mock/generate-employees")
     public ResponseEntity<?> generateEmployees(@RequestParam int count) {
         log.info("▶[generateEmployees] 요청: count={}", count);
@@ -45,6 +45,7 @@ public class EmployeeController {
         return ResponseEntity.ok(response);
     }
 
+    // 사용자 검색
     @GetMapping("/Employees")
     public Map<String, Object> getEmployees(
             @RequestParam(name = "$skip", defaultValue = "0") int skip,
@@ -73,7 +74,7 @@ public class EmployeeController {
         return xfHeader.split(",")[0];
     }
 
-
+    // 사용자 추가
     @PostMapping("/Employees")
     public Employee createEmployee(@RequestBody Employee newEmp) {
         log.info("[createEmployee] 요청: {}", newEmp);
@@ -85,6 +86,7 @@ public class EmployeeController {
         return created;
     }
 
+    // 사용자 역할 조회
     @GetMapping("/Employees/{employeeId}/Roles")
     public ResponseEntity<?> getEmployeeRoles(@PathVariable String employeeId) {
         Optional<Employee> employee = employeeService.findEmployeeById(employeeId);
@@ -95,6 +97,7 @@ public class EmployeeController {
         }
     }
 
+    // 사용자 권한 조회
     @GetMapping("/Employees/{employeeId}/Privileges")
     public ResponseEntity<?> getEmployeePrivileges(@PathVariable String employeeId) {
         Optional<Employee> employee = employeeService.findEmployeeById(employeeId);
@@ -109,5 +112,65 @@ public class EmployeeController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    // 사용자 정보 조회
+    @GetMapping("/Employees/{employeeId}")
+    public ResponseEntity<?> getEmployeeDetail(@PathVariable String employeeId) {
+        log.info("[getEmployeeDetail] 요청: employeeId={}", employeeId);
+
+        Optional<Employee> employee = employeeService.findEmployeeById(employeeId);
+
+        if (employee.isPresent()) {
+            log.info("[getEmployeeDetail] 결과: {}", employee.get());
+            return ResponseEntity.ok(employee.get());
+        } else {
+            log.warn("[getEmployeeDetail] 결과: 직원 없음");
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    // 권한 체크
+    @GetMapping("/Employees/{employeeId}/CheckAuthorization")
+    public ResponseEntity<?> checkAuthorization(
+            @PathVariable String employeeId,
+            @RequestParam String object,
+            @RequestParam String field,
+            @RequestParam String value) {
+
+        Optional<Employee> employeeOpt = employeeService.findEmployeeById(employeeId);
+        if (employeeOpt.isEmpty()) {
+            // ✅ 직원이 없으면 무조건 false 결과로 반환 (404 아님!)
+            Map<String, Object> result = new HashMap<>();
+            result.put("employeeId", employeeId);
+            result.put("object", object);
+            result.put("field", field);
+            result.put("value", value);
+            result.put("hasAuthorization", false);
+            result.put("note", "직원이 존재하지 않음");
+            return ResponseEntity.ok(result);
+        }
+
+        Employee employee = employeeOpt.get();
+        boolean hasAuth = employee.getRoles().stream()
+                .flatMap(role -> role.getPrivileges().stream())
+                .anyMatch(priv -> {
+                    if (!priv.getPrivilegeId().equals(object)) return false;
+                    String[] parts = priv.getPrivilegeName().split("=");
+                    return parts.length == 2
+                            && parts[0].equals(field)
+                            && parts[1].equals(value);
+                });
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("employeeId", employeeId);
+        result.put("object", object);
+        result.put("field", field);
+        result.put("value", value);
+        result.put("hasAuthorization", hasAuth);
+
+        return ResponseEntity.ok(result);
+    }
+
+
 
 }
