@@ -12,10 +12,10 @@
     </appender>
 
     <!-- Hibernate SQL 로그 컬러링 -->
-    <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+    <logger name="org.hibernate.SQL" level="OFF" additivity="false">
         <appender-ref ref="COLORED_CONSOLE" />
     </logger>
-    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="OFF" additivity="false">
         <appender-ref ref="COLORED_CONSOLE" />
     </logger>
 
