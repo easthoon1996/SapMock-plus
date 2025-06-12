@@ -1,11 +1,14 @@
 package com.dreamsecurity.sapmock.model;
 
+import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
 public class Employee {
 
+    @Id
     private String employeeId;
     private String firstName;
     private String lastName;
@@ -27,7 +30,11 @@ public class Employee {
     private String bankAccount;
     private String taxId;
 
-    private List<Role> roles = new ArrayList<>();  // 🔥 SAP 실제처럼: 다수 Role 할당
+    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JoinTable(name = "employee_role",
+            joinColumns = @JoinColumn(name = "employee_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"))
+    private List<Role> roles = new ArrayList<>();  // 다수 Role 할당
 
     public Employee() {}
 
