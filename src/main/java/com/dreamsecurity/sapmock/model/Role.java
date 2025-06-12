@@ -3,11 +3,20 @@ package com.dreamsecurity.sapmock.model;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.persistence.*;
+
+@Entity
 public class Role {
 
+    @Id
     private String roleId;         // 역할 ID (예: ADMIN)
     private String roleName;       // 역할 이름
     private String description;    // 설명
+
+    @ManyToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JoinTable(name = "role_privilege",
+            joinColumns = @JoinColumn(name = "role_id"),
+            inverseJoinColumns = @JoinColumn(name = "privilege_id"))
     private List<Privilege> privileges = new ArrayList<>();  // 권한 리스트
 
     public Role() {}

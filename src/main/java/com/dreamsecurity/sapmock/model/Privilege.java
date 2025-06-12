@@ -1,6 +1,16 @@
 package com.dreamsecurity.sapmock.model;
 
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+@Entity
 public class Privilege {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     private String privilegeId;      // 권한 객체 ID (예: S_USER_GRP)
     private String privilegeName;    // 필드=값 (예: ACTVT=01, TCD=SM30)
