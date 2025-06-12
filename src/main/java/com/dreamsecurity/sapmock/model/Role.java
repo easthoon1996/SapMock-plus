@@ -4,21 +4,50 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Role {
-    private String roleId;
-    private String roleName;
-    private String description;
-    private List<Privilege> privileges = new ArrayList<>();
 
-    // Getter/Setter
-    public String getRoleId() { return roleId; }
-    public void setRoleId(String roleId) { this.roleId = roleId; }
+    private String roleId;         // 역할 ID (예: ADMIN)
+    private String roleName;       // 역할 이름
+    private String description;    // 설명
+    private List<Privilege> privileges = new ArrayList<>();  // 권한 리스트
 
-    public String getRoleName() { return roleName; }
-    public void setRoleName(String roleName) { this.roleName = roleName; }
+    public Role() {}
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public Role(String roleId, String roleName, String description, List<Privilege> privileges) {
+        this.roleId = roleId;
+        this.roleName = roleName;
+        this.description = description;
+        this.privileges = privileges;
+    }
 
-    public List<Privilege> getPrivileges() { return privileges; }
-    public void setPrivileges(List<Privilege> privileges) { this.privileges = privileges; }
+    public String getRoleId() {
+        return roleId;
+    }
+
+    public void setRoleId(String roleId) {
+        this.roleId = roleId;
+    }
+
+    public String getRoleName() {
+        return roleName;
+    }
+
+    public void setRoleName(String roleName) {
+        this.roleName = roleName;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public List<Privilege> getPrivileges() {
+        return privileges;
+    }
+
+    public void setPrivileges(List<Privilege> privileges) {
+        this.privileges = privileges;
+    }
 }
