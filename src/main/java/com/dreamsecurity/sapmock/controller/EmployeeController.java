@@ -6,6 +6,7 @@ import com.dreamsecurity.sapmock.service.FakeSapService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
@@ -29,7 +30,9 @@ public class EmployeeController {
         this.restTemplate = restTemplate;
     }
 
-    // 사용자 생성
+    @Value("odata.metadata.domain")
+    private String sapMetadataDomain;
+
     @PostMapping("/sap/mock/generate-employees")
     public ResponseEntity<?> generateEmployees(@RequestParam int count) {
         log.info("▶[generateEmployees] 요청: count={}", count);
@@ -45,7 +48,6 @@ public class EmployeeController {
         return ResponseEntity.ok(response);
     }
 
-    // 사용자 검색
     @GetMapping("/Employees")
     public Map<String, Object> getEmployees(
             @RequestParam(name = "$skip", defaultValue = "0") int skip,
@@ -56,14 +58,49 @@ public class EmployeeController {
         String clientIp = getClientIp(request);
         log.info("▶[getEmployees] 요청: skip={}, top={}, filter={}, from IP={}", skip, top, filter, clientIp);
 
-        List<Employee> results = employeeService.getEmployees(skip, top, filter);
+        List<Employee> results = employeeService.findAllEmployees(skip, top, filter);
         log.info("[getEmployees] 결과: {}명의 직원 반환", results.size());
+
+        List<Map<String, Object>> wrapped = results.stream().map(e -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("__metadata", Map.of(
+                    "id", String.format(sapMetadataDomain + "/sap/opu/odata/sap/EMPLOYEE_BASIC_SRV/Employees('%s')", e.getEmployeeId()),
+                    "type", "EMPLOYEE_BASIC_SRV.Employee"
+            ));
+            map.putAll(convertEmployeeToMap(e));
+            return map;
+        }).collect(Collectors.toList());
 
         Map<String, Object> response = new HashMap<>();
         Map<String, Object> d = new HashMap<>();
-        d.put("results", results);
+        d.put("results", wrapped);
         response.put("d", d);
         return response;
+    }
+
+    private Map<String, Object> convertEmployeeToMap(Employee e) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("employeeId", e.getEmployeeId());
+        map.put("firstName", e.getFirstName());
+        map.put("lastName", e.getLastName());
+        map.put("middleName", e.getMiddleName());
+        map.put("gender", e.getGender());
+        map.put("nationality", e.getNationality());
+        map.put("maritalStatus", e.getMaritalStatus());
+        map.put("position", e.getPosition());
+        map.put("jobTitle", e.getJobTitle());
+        map.put("department", e.getDepartment());
+        map.put("departmentName", e.getDepartmentName());
+        map.put("birthDate", e.getBirthDate());
+        map.put("hireDate", e.getHireDate());
+        map.put("terminationDate", e.getTerminationDate());
+        map.put("workEmail", e.getWorkEmail());
+        map.put("workPhone", e.getWorkPhone());
+        map.put("mobilePhone", e.getMobilePhone());
+        map.put("address", e.getAddress());
+        map.put("bankAccount", e.getBankAccount());
+        map.put("taxId", e.getTaxId());
+        return map;
     }
 
     private String getClientIp(HttpServletRequest request) {
@@ -74,62 +111,74 @@ public class EmployeeController {
         return xfHeader.split(",")[0];
     }
 
-    // 사용자 추가
     @PostMapping("/Employees")
     public Employee createEmployee(@RequestBody Employee newEmp) {
         log.info("[createEmployee] 요청: {}", newEmp);
 
-        Employee created = employeeService.addEmployee(newEmp);
+        Employee created = employeeService.saveEmployee(newEmp);
 
         log.info("[createEmployee] 신규 직원 생성: {}", created.getEmployeeId());
 
         return created;
     }
 
-    // 사용자 역할 조회
     @GetMapping("/Employees/{employeeId}/Roles")
     public ResponseEntity<?> getEmployeeRoles(@PathVariable String employeeId) {
-        Optional<Employee> employee = employeeService.findEmployeeById(employeeId);
-        if (employee.isPresent()) {
-            return ResponseEntity.ok(employee.get().getRoles());
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        return employeeService.findEmployeeById(employeeId)
+                .map(emp -> {
+                    List<Map<String, Object>> wrapped = emp.getRoles().stream().map(r -> {
+                        Map<String, Object> map = new LinkedHashMap<>();
+                        map.put("__metadata", Map.of("type", "EMPLOYEE_BASIC_SRV.Role"));
+                        map.put("roleId", r.getRoleId());
+                        map.put("roleName", r.getRoleName());
+                        return map;
+                    }).collect(Collectors.toList());
+                    return ResponseEntity.ok(Map.of("d", Map.of("results", wrapped)));
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // 사용자 권한 조회
     @GetMapping("/Employees/{employeeId}/Privileges")
     public ResponseEntity<?> getEmployeePrivileges(@PathVariable String employeeId) {
-        Optional<Employee> employee = employeeService.findEmployeeById(employeeId);
-        if (employee.isPresent()) {
-            // 🔥 모든 Role에서 Privileges를 합쳐서 보여주기
-            List<Privilege> privileges = employee.get().getRoles().stream()
-                    .flatMap(r -> r.getPrivileges().stream())
-                    .distinct() // 중복 제거
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(privileges);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        return employeeService.findEmployeeById(employeeId)
+                .map(emp -> {
+                    List<Privilege> privileges = emp.getRoles().stream()
+                            .flatMap(r -> r.getPrivileges().stream())
+                            .distinct()
+                            .collect(Collectors.toList());
+                    List<Map<String, Object>> wrapped = privileges.stream().map(p -> {
+                        Map<String, Object> map = new LinkedHashMap<>();
+                        map.put("__metadata", Map.of("type", "EMPLOYEE_BASIC_SRV.Privilege"));
+                        map.put("privilegeId", p.getPrivilegeId());
+                        map.put("privilegeName", p.getPrivilegeName());
+                        return map;
+                    }).collect(Collectors.toList());
+                    return ResponseEntity.ok(Map.of("d", Map.of("results", wrapped)));
+                })
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // 사용자 정보 조회
     @GetMapping("/Employees/{employeeId}")
     public ResponseEntity<?> getEmployeeDetail(@PathVariable String employeeId) {
         log.info("[getEmployeeDetail] 요청: employeeId={}", employeeId);
 
-        Optional<Employee> employee = employeeService.findEmployeeById(employeeId);
-
-        if (employee.isPresent()) {
-            log.info("[getEmployeeDetail] 결과: {}", employee.get());
-            return ResponseEntity.ok(employee.get());
-        } else {
-            log.warn("[getEmployeeDetail] 결과: 직원 없음");
-            return ResponseEntity.notFound().build();
-        }
+        return employeeService.findEmployeeById(employeeId)
+                .map(emp -> {
+                    log.info("[getEmployeeDetail] 결과: {}", emp);
+                    Map<String, Object> d = new LinkedHashMap<>();
+                    d.put("__metadata", Map.of(
+                            "id", String.format(sapMetadataDomain + "/sap/opu/odata/sap/EMPLOYEE_BASIC_SRV/Employees('%s')", emp.getEmployeeId()),
+                            "type", "EMPLOYEE_BASIC_SRV.Employee"
+                    ));
+                    d.putAll(convertEmployeeToMap(emp));
+                    return ResponseEntity.ok(Map.of("d", d));
+                })
+                .orElseGet(() -> {
+                    log.warn("[getEmployeeDetail] 결과: 직원 없음");
+                    return ResponseEntity.notFound().build();
+                });
     }
 
-    // 권한 체크
     @GetMapping("/Employees/{employeeId}/CheckAuthorization")
     public ResponseEntity<?> checkAuthorization(
             @PathVariable String employeeId,
@@ -137,40 +186,30 @@ public class EmployeeController {
             @RequestParam String field,
             @RequestParam String value) {
 
-        Optional<Employee> employeeOpt = employeeService.findEmployeeById(employeeId);
-        if (employeeOpt.isEmpty()) {
-            // ✅ 직원이 없으면 무조건 false 결과로 반환 (404 아님!)
-            Map<String, Object> result = new HashMap<>();
-            result.put("employeeId", employeeId);
-            result.put("object", object);
-            result.put("field", field);
-            result.put("value", value);
-            result.put("hasAuthorization", false);
-            result.put("note", "직원이 존재하지 않음");
-            return ResponseEntity.ok(result);
-        }
+        return employeeService.findEmployeeById(employeeId)
+                .map(emp -> {
+                    boolean hasAuth = emp.getRoles().stream()
+                            .flatMap(role -> role.getPrivileges().stream())
+                            .anyMatch(priv -> priv.getPrivilegeId().equals(object) &&
+                                    Arrays.equals(priv.getPrivilegeName().split("="), new String[]{field, value}));
 
-        Employee employee = employeeOpt.get();
-        boolean hasAuth = employee.getRoles().stream()
-                .flatMap(role -> role.getPrivileges().stream())
-                .anyMatch(priv -> {
-                    if (!priv.getPrivilegeId().equals(object)) return false;
-                    String[] parts = priv.getPrivilegeName().split("=");
-                    return parts.length == 2
-                            && parts[0].equals(field)
-                            && parts[1].equals(value);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("employeeId", employeeId);
+                    result.put("object", object);
+                    result.put("field", field);
+                    result.put("value", value);
+                    result.put("hasAuthorization", hasAuth);
+                    return ResponseEntity.ok(result);
+                })
+                .orElseGet(() -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("employeeId", employeeId);
+                    result.put("object", object);
+                    result.put("field", field);
+                    result.put("value", value);
+                    result.put("hasAuthorization", false);
+                    result.put("note", "직원이 존재하지 않음");
+                    return ResponseEntity.ok(result);
                 });
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("employeeId", employeeId);
-        result.put("object", object);
-        result.put("field", field);
-        result.put("value", value);
-        result.put("hasAuthorization", hasAuth);
-
-        return ResponseEntity.ok(result);
     }
-
-
-
 }
